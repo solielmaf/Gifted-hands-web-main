@@ -24,6 +24,26 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Function to convert image paths to absolute URLs
+  const getImageUrl = (imagePath: string): string => {
+    if (!imagePath) return "/placeholder.png";
+    
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // If it's a relative path from Laravel, make it absolute
+    if (imagePath.startsWith('/products/') || imagePath.startsWith('products/')) {
+      // Remove leading slash if present to avoid double slashes
+      const cleanPath = imagePath.replace(/^\//, '');
+      return `http://127.0.0.1:8000/storage/${cleanPath}`;
+    }
+    
+    // For any other case (like placeholder), return as is
+    return imagePath;
+  };
+
   // Function to safely parse images
   const safeJSONParse = (str: string | string[]): string[] => {
     if (Array.isArray(str)) return str;
@@ -47,17 +67,8 @@ export default function ProductPage() {
         // Parse images safely
         const parsedImages = safeJSONParse(data.images);
         
-        // Handle image paths - use relative paths as in listing page
-        const images = parsedImages.map((img) => {
-          // If it's already a full URL, use it as-is
-          if (img.startsWith('http')) return img;
-          
-          // If it starts with a slash, use it as relative path
-          if (img.startsWith('/')) return img;
-          
-          // Otherwise, prepend a slash
-          return `/${img}`;
-        });
+        // Convert image paths to absolute URLs
+        const images = parsedImages.map(img => getImageUrl(img));
 
         setProduct({ 
           ...data, 
@@ -87,7 +98,7 @@ export default function ProductPage() {
       {/* Image gallery */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {product.images.map((img, idx) => (
-          <div key={idx} className="relative w-full h-100 ">
+          <div key={idx} className="relative w-full h-96"> {/* Fixed height */}
             <Image
               src={img}
               alt={`${product.name} ${idx + 1}`}
@@ -103,7 +114,7 @@ export default function ProductPage() {
       </div>
 
       {/* Description */}
-      <p className="mb-6 text-gray-700 text-white">{product.description}</p>
+      <p className="mb-6 text-white">{product.description}</p>
 
       {/* Specifications Table */}
       {product.specifications && Object.keys(product.specifications).length > 0 && (
@@ -133,8 +144,7 @@ export default function ProductPage() {
         </Link>
       )}
 
-<InquiryForm productId={product.id} title={product.name} />
-
+      <InquiryForm productId={product.id} title={product.name} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\ProductController;
@@ -25,7 +26,10 @@ Route::post('/contact', [ContactController::class, 'store']);
 // // Services API
 Route::get('/services', [ServiceController::class, 'index']);
 
+Route::apiResource('services', ServiceController::class);
+Route::apiResource('categories', CategoryController::class);
 
+Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
 
 

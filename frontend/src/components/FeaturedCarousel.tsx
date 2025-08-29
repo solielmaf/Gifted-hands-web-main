@@ -13,6 +13,26 @@ interface Product {
 export default function NewArrivalsCarousel() {
   const [products, setProducts] = useState<Product[]>([]);
 
+  // Function to convert relative paths to absolute URLs
+  const getImageUrl = (imagePath: string): string => {
+    if (!imagePath) return "/placeholder.png";
+    
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // If it's a relative path from Laravel storage, make it absolute
+    if (imagePath.startsWith('/products/') || imagePath.startsWith('products/')) {
+      // Remove leading slash if present to avoid double slashes
+      const cleanPath = imagePath.replace(/^\//, '');
+      return `http://127.0.0.1:8000/storage/${cleanPath}`;
+    }
+    
+    // For any other case (like placeholder), return as is
+    return imagePath;
+  };
+
   useEffect(() => {
     const fetchNewArrivals = async () => {
       try {
@@ -20,10 +40,12 @@ export default function NewArrivalsCarousel() {
         if (!res.ok) throw new Error("Failed to fetch new arrivals");
         const data: Product[] = await res.json();
 
-        // Ensure images are always arrays
+        // Ensure images are always arrays and convert to absolute URLs
         const parsedProducts = data.map((p) => ({
           ...p,
-          images: Array.isArray(p.images) ? p.images : [p.images || "/placeholder.png"],
+          images: Array.isArray(p.images) 
+            ? p.images.map(img => getImageUrl(img))
+            : [getImageUrl(p.images || "/placeholder.png")],
         }));
 
         setProducts(parsedProducts);
@@ -44,16 +66,17 @@ export default function NewArrivalsCarousel() {
           <Link key={prod.id} href={`/products/${prod.id}`}>
             <div className="min-w-[300px] bg-white shadow-md rounded-lg p-2 pt-0 flex flex-col items-center cursor-pointer transform hover:scale-105 transition-transform duration-200">
               <div className="relative w-full h-48 mb-4 overflow-hidden rounded-lg">
-              <Image
-  src={prod.images?.[0] || "/placeholder.png"} // ✅ safe fallback
-  alt={prod.name}
-  fill
-  className="object-cover rounded-lg"
-  sizes="(max-width: 768px) 100vw, 250px"
-  placeholder="blur"
-  blurDataURL="/placeholder.png"
-/>
-
+                <Image
+                  src={prod.images?.[0] || "/placeholder.png"}
+                  alt={prod.name}
+                  fill
+                  className="object-cover rounded-lg"
+                  sizes="(max-width: 768px) 100vw, 250px"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    e.currentTarget.src = "/placeholder.png";
+                  }}
+                />
               </div>
               <h2 className="font-semibold text-center text-black">{prod.name}</h2>
               <p className="text-gray-600 mt-1 text-center">{prod.price}</p>

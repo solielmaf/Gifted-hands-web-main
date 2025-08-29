@@ -43,12 +43,22 @@ class ProductController extends Controller
 
             if (is_string($product->images)) {
                 $decoded = json_decode($product->images, true);
-                $images = is_array($decoded) ? $decoded : [$product->images];
+                $imageArray = is_array($decoded) ? $decoded : [$product->images];
+
+                foreach ($imageArray as $image) {
+                    if ($image) {
+                        // Remove any leading slashes to avoid double slashes
+                        $cleanImage = ltrim($image, '/');
+                        // Return full URL instead of relative path
+                        $images[] = asset('storage/' . $cleanImage);
+                    }
+                }
             }
 
-            // Use relative paths for Next.js public folder
-            $images = array_map(fn($img) => $img ? "/" . ltrim($img, '/') : "/placeholder.png", $images);
-
+            // If no images, use placeholder
+            if (empty($images)) {
+                $images = ["/placeholder.png"];
+            }
 
             return [
                 'id' => $product->id,
@@ -58,7 +68,6 @@ class ProductController extends Controller
             ];
         });
     }
-
 
     /**
      * Show the form for creating a new resource.
@@ -73,9 +82,33 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        //
-    }
+        $request->validate([
+            'name' => 'required|string',
+            'price' => 'required|string',
+            'description' => 'nullable|string',
+            'category_id' => 'required|integer',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
 
+        $images = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $path = $file->store('products', 'public');
+                $images[] = $path;
+            }
+        }
+
+        // Handle case where no images are uploaded
+        $product = Product::create([
+            'name' => $request->name,
+            'price' => $request->price,
+            'description' => $request->description,
+            'category_id' => $request->category_id,
+            'images' => !empty($images) ? json_encode($images) : json_encode([]), // Ensure it's always an array
+        ]);
+
+        return response()->json($product);
+    }
     /**
      * Display the specified resource.
      */
@@ -97,7 +130,27 @@ class ProductController extends Controller
      */
     public function update(Request $request, Product $product)
     {
-        //
+        $request->validate([
+            'name' => 'required|string',
+            'price' => 'required|string',
+            'description' => 'nullable|string',
+            'category_id' => 'required|integer',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        // Only update images if new ones are uploaded
+        if ($request->hasFile('images')) {
+            $images = [];
+            foreach ($request->file('images') as $file) {
+                $path = $file->store('products', 'public');
+                $images[] = $path;
+            }
+            $product->images = json_encode($images);
+        }
+
+        $product->update($request->only('name', 'price', 'description', 'category_id'));
+
+        return response()->json($product);
     }
 
     /**
@@ -105,6 +158,9 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
-        //
+        // Delete the product
+        $product->delete();
+
+        return response()->json(['message' => 'Product deleted successfully']);
     }
 }
