@@ -1,0 +1,16 @@
+<?php
+use App\Models\Category;
+
+$categories = [
+    'Medical Imaging Solutions',
+    'Laboratory Equipment (IVD Solutions)',
+    'Patient Monitoring & Life Support (PMLS)',
+    'Hospital & Surgical Equipment',
+    'Consumables & Accessories'
+];
+
+foreach ($categories as $name) {
+    Category::create(['name' => $name]);
+}
+
+echo "Categories added successfully!\n";
