@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -6,69 +7,72 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
+      // First fetch CSRF cookie
+      const csrfResponse = await fetch("http://127.0.0.1:8000/sanctum/csrf-cookie", {
+        credentials: "include",
+      });
+      
+      if (!csrfResponse.ok) {
+        throw new Error("Failed to get CSRF token");
+      }
+
+      // Then proceed with login
       const res = await fetch("http://127.0.0.1:8000/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Invalid credentials");
-      }
-      
       const data = await res.json();
 
-      // Handle both response formats:
-      // 1. { user: {...}, token: '...' } 
-      // 2. { role: 'admin', name: '...', token: '...' }
-      
-      let userData;
-      let token;
-      
-      if (data.user) {
-        // Format 1: User data is nested
-        userData = data.user;
-        token = data.token;
-      } else {
-        // Format 2: User data is at root level
-        userData = data;
-        token = data.token;
-        // Remove token from user data to avoid storing it twice
-        delete userData.token;
+      if (!res.ok) {
+        throw new Error(data.message || "Invalid credentials");
       }
-      
-      // Store token if it exists
-      if (token) {
-        localStorage.setItem("adminToken", token);
+
+      // Handle both response formats safely
+      const token = data.token || null;
+      const userData = data.user || {
+        role: data.role,
+        name: data.name,
+        email: data.email,
+      };
+
+      if (!token) {
+        throw new Error("No token received from server");
       }
-      
-      // Store user data
+
+      // Store token + user info
+      localStorage.setItem("adminToken", token);
       localStorage.setItem("adminUser", JSON.stringify(userData));
 
-      // Notify other components about the login
-      window.dispatchEvent(new Event('storage'));
+      // Notify listeners (for Navbar/Chat reload)
+      window.dispatchEvent(new Event("storage"));
 
-      router.push("/products"); // redirect to products page
+      router.push("/"); // ✅ Redirect to homepage (or /admin-dashboard if needed)
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred");
-      }
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100 text-black">
-      <form onSubmit={handleLogin} className="bg-white p-6 shadow-lg rounded text-black w-96">
-        <h2 className="text-xl font-bold mb-4">Admin Login</h2>
+      <form
+        onSubmit={handleLogin}
+        className="bg-white p-6 shadow-lg rounded text-black w-96"
+      >
+        <h2 className="text-xl font-bold mb-4 text-center">Admin Login</h2>
 
         {error && <p className="text-red-500 mb-2">{error}</p>}
 
@@ -91,9 +95,10 @@ export default function AdminLogin() {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          disabled={loading}
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
     </div>

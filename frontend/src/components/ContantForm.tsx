@@ -48,7 +48,7 @@ export default function ContactForm() {
         placeholder="Your Name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full p-2 border rounded mb-3 text-black"
+        className="w-full p-2 border border-[#008080] rounded mb-3 text-black"
         required
       />
 
@@ -57,7 +57,7 @@ export default function ContactForm() {
         placeholder="Your Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full p-2 border rounded mb-3 text-black"
+        className="w-full p-2 border border-[#008080] rounded mb-3 text-black"
         required
       />
 
@@ -65,7 +65,7 @@ export default function ContactForm() {
         placeholder="Your Message"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        className="w-full p-2 border rounded mb-3 text-black"
+        className="w-full p-2 border border-[#008080] rounded mb-3 text-black"
         rows={4}
         required
       />
@@ -73,7 +73,7 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={loading}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded "
+        className="bg-[#008080] hover:bg-[#008988] text-white px-4 py-2 rounded "
       >
         {loading ? "Sending..." : "Send Message"}
       </button>

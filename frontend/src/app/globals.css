@@ -27,9 +27,47 @@
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+@font-face {
+  font-family: 'Ledger';
+  src:url('/fonts/Ledger.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* ensures smooth loading */
+}
 
 body {
-  background: var(--background);
+  background: rgba(0, 128, 128, 0.141) ;
+  
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ledger), serif;
+}
+@keyframes medical-float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-15px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+.animate-medical {
+  animation-name: medical-float;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.font-body {
+  font-family: var(--font-kumbh), sans-serif;
+}
+
+.font-heading {
+  font-family: var(--font-kumbh), sans-serif;
+}
+/* Make toast appear perfectly in the middle */
+.custom-toast {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  position: fixed !important;
 }

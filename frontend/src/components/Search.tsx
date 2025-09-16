@@ -30,7 +30,7 @@ export default function Search() {
       .catch((err) => console.error(err));
   }, []);
 
-  // Hide results on outside click
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -73,11 +73,11 @@ export default function Search() {
           placeholder="Search products..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-grow border border-gray-300 rounded-md px-4 py-2 focus:ring-offset-blue-500"
+          className="flex-grow border border-black rounded-xl px-4 py-2 text-black placeholder-black"
         />
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          className="bg-[#008080] w-30 text-white px-4 py-2 rounded-full hover:[#008088]"
         >
           Search
         </button>

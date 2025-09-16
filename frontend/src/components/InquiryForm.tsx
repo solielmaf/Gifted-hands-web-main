@@ -52,10 +52,10 @@ export default function InquiryForm({ productId, title }: InquiryFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-8 p-4 border rounded-lg shadow-md bg-gray-50"
+      className="mt-8 p-4  rounded-lg shadow-md bg-gray-50"
     >
       <h2 className="text-xl font-semibold mb-4 text-black">
-        {title || "Inquire about this product"}
+        { "Inquire about " + title  || "Inquire about this product"}
       </h2>
 
       <input
@@ -63,7 +63,7 @@ export default function InquiryForm({ productId, title }: InquiryFormProps) {
         placeholder="Your Name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full p-2 border rounded mb-3 text-black"
+        className="w-full p-2 border border-[#008080] rounded mb-3 text-black"
         required
       />
 
@@ -72,7 +72,7 @@ export default function InquiryForm({ productId, title }: InquiryFormProps) {
         placeholder="Your Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full p-2 border rounded mb-3 text-black"
+        className="w-full p-2 border border-[#008080] rounded mb-3 text-black"
         required
       />
 
@@ -80,7 +80,7 @@ export default function InquiryForm({ productId, title }: InquiryFormProps) {
         placeholder="Your Message"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        className="w-full p-2 border rounded mb-3 text-black"
+        className="w-full p-2 border border-[#008080] rounded mb-3 text-black"
         rows={4}
         required
       />
@@ -89,7 +89,7 @@ export default function InquiryForm({ productId, title }: InquiryFormProps) {
         type="submit"
         disabled={loading} // disable while loading
         className={`px-4 py-2 rounded text-white ${
-          loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+          loading ? "bg-gray-400" : "bg-[#008080] hover:bg-blue-700"
         }`}
       >
         {loading ? "Submitting..." : "Submit Inquiry"}

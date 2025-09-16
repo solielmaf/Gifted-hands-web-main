@@ -58,19 +58,19 @@ export default function NewArrivalsCarousel() {
   }, []);
 
   return (
-    <section className="px-4 py-12">
+    <section className="px-20 py-12 text-black">
       <h1 className="text-2xl font-bold mb-6 ">Featured Products</h1>
       <h2 className="text-xl font-bold mb-6 text-center">New Arrivals</h2>
       <div className="flex overflow-x-auto space-x-6 pb-4  scrollbar-hide">
         {products.map((prod) => (
           <Link key={prod.id} href={`/products/${prod.id}`}>
-            <div className="min-w-[300px] bg-white shadow-md rounded-lg p-2 pt-0 flex flex-col items-center cursor-pointer transform hover:scale-105 transition-transform duration-200">
+            <div className="min-w-[300px] bg-white shadow-md rounded-lg pb-5 pt-0 flex flex-col items-center cursor-pointer transform hover:scale-105 transition-transform duration-200">
               <div className="relative w-full h-48 mb-4 overflow-hidden rounded-lg">
                 <Image
                   src={prod.images?.[0] || "/placeholder.png"}
                   alt={prod.name}
                   fill
-                  className="object-cover rounded-lg"
+                  className="object-cover  rounded-lg"
                   sizes="(max-width: 768px) 100vw, 250px"
                   onError={(e) => {
                     // Fallback to placeholder if image fails to load
@@ -79,7 +79,7 @@ export default function NewArrivalsCarousel() {
                 />
               </div>
               <h2 className="font-semibold text-center text-black">{prod.name}</h2>
-              <p className="text-gray-600 mt-1 text-center">{prod.price}</p>
+              <p className="text-[#008080] mt-1 text-center">{prod.price}</p>
             </div>
           </Link>
         ))}

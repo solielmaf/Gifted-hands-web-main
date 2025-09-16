@@ -1,5 +1,7 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { toast, Toaster } from "react-hot-toast";
 
 interface Service {
   id: number;
@@ -17,29 +19,22 @@ export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  
-  // Admin modal state
+
+  // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    price: "",
-  });
+  const [form, setForm] = useState({ name: "", description: "", price: "" });
 
   // Fetch logged-in user
   useEffect(() => {
     const storedUser = localStorage.getItem("adminUser");
     if (storedUser) {
       try {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
+        setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error("Error parsing user data:", error);
         setUser(null);
       }
-    } else {
-      setUser(null);
     }
   }, []);
 
@@ -48,145 +43,154 @@ export default function ServicesPage() {
     fetchServices();
   }, []);
 
-  const fetchServices = () => {
-    setLoading(true);
-    fetch("http://127.0.0.1:8000/api/services")
-      .then((res) => res.json())
-      .then((data) => {
-        setServices(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch services", err);
-        setLoading(false);
-      });
-  };
-
-  // Check if user is admin
-  const isAdmin = () => {
-    if (!user) return false;
-    return (
-      user.role === "admin" || 
-      user.is_admin === true
-    );
-  };
-
-  // Open modal for add/edit
-  const openModal = (service?: Service) => {
-    if (service) {
-      setEditingService(service);
-      setForm({
-        name: service.name,
-        description: service.description,
-        price: service.price,
-      });
-    } else {
-      setEditingService(null);
-      setForm({
-        name: "",
-        description: "",
-        price: "",
-      });
+  const fetchServices = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://127.0.0.1:8000/api/services");
+      if (!res.ok) throw new Error("Failed to fetch services");
+      const data = await res.json();
+      setServices(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      console.error("Failed to fetch services:", err);
+      toast.error("Failed to fetch services");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const isAdmin = () => user?.role === "admin" || user?.is_admin;
+
+  const openModal = (service?: Service) => {
+    setEditingService(service || null);
+    setForm(
+      service
+        ? { name: service.name, description: service.description, price: service.price }
+        : { name: "", description: "", price: "" }
+    );
     setModalOpen(true);
   };
 
-  // Handle form changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingService(null);
+    setForm({ name: "", description: "", price: "" });
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Handle form submission
   const handleSubmit = async () => {
-    // Validate form
     if (!form.name || !form.description || !form.price) {
-      alert("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
-    try {
-      let response;
-      if (editingService) {
-        // Update existing service
-        response = await fetch(`http://127.0.0.1:8000/api/services/${editingService.id}`, {
-          method: "PUT",
+    const url = editingService
+      ? `http://127.0.0.1:8000/api/services/${editingService.id}`
+      : "http://127.0.0.1:8000/api/services";
+    const method = editingService ? "PUT" : "POST";
+
+    toast.promise(
+      (async () => {
+        const res = await fetch(url, {
+          method,
           headers: {
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            Accept: "application/json",
           },
           body: JSON.stringify(form),
         });
-      } else {
-        // Create new service
-        response = await fetch("http://127.0.0.1:8000/api/services", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          },
-          body: JSON.stringify(form),
-        });
-      }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save service");
-      }
+        if (!res.ok) {
+          let errorMessage = "Failed to save service";
+          try {
+            const data = await res.json();
+            errorMessage = data.message || errorMessage;
+          } catch {}
+          throw new Error(errorMessage);
+        }
 
-      setModalOpen(false);
-      fetchServices(); // Refresh the services list
-      alert(`Service ${editingService ? 'updated' : 'created'} successfully`);
-    } catch (err) {
-      console.error("Error saving service:", err);
-      alert("Error saving service: " + (err instanceof Error ? err.message : "Unknown error"));
-    }
+        return res.json();
+      })(),
+      {
+        loading: editingService ? "Updating service..." : "Creating service...",
+        success: () => {
+          fetchServices();
+          closeModal();
+          return `Service ${editingService ? "updated" : "created"} successfully`;
+        },
+        error: (err: unknown) =>
+          err instanceof Error
+            ? `Error saving service: ${err.message}`
+            : "Unknown error saving service",
+      }
+    );
   };
 
-  // Handle delete service
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this service?")) return;
-    
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/api/services/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Accept": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete service");
-      }
-
-      // Remove the service from the local state for immediate UI update
-      setServices(prevServices => prevServices.filter(service => service.id !== id));
-      alert("Service deleted successfully");
-    } catch (err) {
-      console.error("Error deleting service:", err);
-      alert("Error deleting service: " + (err instanceof Error ? err.message : "Unknown error"));
-      
-      // Refresh the services list as fallback
-      fetchServices();
-    }
+  // Delete confirmation like product page
+  const confirmDelete = (id: number) => {
+    toast.custom((t) => (
+      <div className="flex flex-col bg-white shadow-lg p-4 rounded gap-3 w-80">
+        <p>Are you sure you want to delete this service?</p>
+        <div className="flex justify-end gap-2">
+          <button
+            className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            No
+          </button>
+          <button
+            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                const res = await fetch(`http://127.0.0.1:8000/api/services/${id}`, {
+                  method: "DELETE",
+                  headers: { Accept: "application/json" },
+                });
+                if (!res.ok) throw new Error("Failed to delete service");
+                setServices((prev) => prev.filter((s) => s.id !== id));
+                toast.success("Service deleted successfully");
+              } catch (err: unknown) {
+                if (err instanceof Error) {
+                  console.error(err);
+                  toast.error(`Error deleting service: ${err.message}`);
+                } else {
+                  console.error(err);
+                  toast.error("Unknown error deleting service");
+                }
+              }
+            }}
+          >
+            Yes
+          </button>
+        </div>
+      </div>
+    ));
   };
 
   if (loading) return <p className="text-center">Loading services...</p>;
 
   return (
-    <section className="px-4 py-12 max-w-6xl mx-auto">
+    <section className="px-4 py-20 text-black max-w-6xl mx-auto">
+      <Toaster position="top-center" reverseOrder={false} />
+
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Our Services</h1>
         {isAdmin() && (
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            className="bg-[#008080] text-white px-4 py-2 rounded hover:bg-[#008898]"
             onClick={() => openModal()}
           >
             Add Service
           </button>
         )}
       </div>
-      
+
+      {/* Services Grid */}
       <div className="grid md:grid-cols-3 gap-8">
         {services.map((service) => (
           <div
@@ -196,30 +200,30 @@ export default function ServicesPage() {
             {isAdmin() && (
               <div className="absolute top-2 right-2 flex gap-2">
                 <button
-                  className="bg-yellow-400 text-white p-1 rounded text-xs"
+                  className="bg-[#008080] text-white p-1 rounded text-xs"
                   onClick={() => openModal(service)}
                 >
                   Edit
                 </button>
                 <button
                   className="bg-red-500 text-white p-1 rounded text-xs"
-                  onClick={() => handleDelete(service.id)}
+                  onClick={() => confirmDelete(service.id)}
                 >
                   Delete
                 </button>
               </div>
             )}
-            <h2 className="text-xl text-black font-semibold mb-2">{service.name}</h2>
+            <h2 className="text-xl font-semibold mb-2">{service.name}</h2>
             <p className="text-gray-600 mb-4">{service.description}</p>
-            <p className="text-blue-600 font-bold">{service.price} ETB</p>
+            <p className="text-[#008080] font-bold">{service.price} ETB</p>
           </div>
         ))}
       </div>
 
-      {/* Admin Modal for Add/Edit */}
+      {/* Add / Edit Modal */}
       {modalOpen && isAdmin() && (
-        <div className="fixed text-black inset-0 bg-black/50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded w-96">
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
             <h2 className="text-xl font-bold mb-4">
               {editingService ? "Edit Service" : "Add Service"}
             </h2>
@@ -230,10 +234,10 @@ export default function ServicesPage() {
               placeholder="Service Name"
               value={form.name}
               onChange={handleChange}
-              className="w-full mb-3 p-2 border text-black rounded"
+              className="w-full mb-3 p-2 border rounded"
               required
             />
-            
+
             <textarea
               name="description"
               placeholder="Description"
@@ -243,7 +247,7 @@ export default function ServicesPage() {
               rows={4}
               required
             />
-            
+
             <input
               type="text"
               name="price"
@@ -257,12 +261,12 @@ export default function ServicesPage() {
             <div className="flex justify-end gap-2">
               <button
                 className="bg-gray-400 px-4 py-2 rounded text-white"
-                onClick={() => setModalOpen(false)}
+                onClick={closeModal}
               >
                 Cancel
               </button>
               <button
-                className="bg-blue-500 px-4 py-2 rounded text-white"
+                className="bg-[#008080] px-4 py-2 rounded text-white"
                 onClick={handleSubmit}
               >
                 {editingService ? "Update" : "Create"}

@@ -22,15 +22,45 @@ class ProductController extends Controller
             });
         }
 
-        return $query->get()->map(function ($product) {
-            if (!empty($product->images)) {
-                $product->image_url = asset('storage/' . $product->images[0]);
-            } else {
-                $product->image_url = null; // or a placeholder image
-            }
-            return $product;
-        });
+        $products = $query->get();
 
+        // Transform the products to include proper image URLs
+        return $products->map(function ($product) {
+            $images = [];
+
+            // Handle the images field whether it's array, string, or JSON string
+            if (is_array($product->images)) {
+                $images = $product->images;
+            } elseif (is_string($product->images)) {
+                // Try to decode JSON, if it fails, treat as single image string
+                $decoded = json_decode($product->images, true);
+                $images = is_array($decoded) ? $decoded : [$product->images];
+            }
+
+            // Clean and format image URLs
+            $cleanedImages = array_map(function ($image) {
+                // Remove any unwanted characters
+                $cleanImage = trim($image, '"[]\\/');
+                // Ensure it's a proper path
+                if (strpos($cleanImage, 'products/') === 0) {
+                    return asset('storage/' . $cleanImage);
+                }
+                return $cleanImage;
+            }, $images);
+
+            // Remove empty values
+            $cleanedImages = array_filter($cleanedImages);
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'description' => $product->description,
+                'category_id' => $product->category_id,
+                'images' => !empty($cleanedImages) ? $cleanedImages : [asset('storage/placeholder.png')],
+                'category' => $product->category
+            ];
+        });
     }
     public function newArrivals()
     {
@@ -115,6 +145,11 @@ class ProductController extends Controller
     public function show(Product $product)
     {
         return $product->load('category');
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+        return response()->json($product);
     }
 
     /**
@@ -130,15 +165,11 @@ class ProductController extends Controller
      */
     public function update(Request $request, Product $product)
     {
-        $request->validate([
-            'name' => 'required|string',
-            'price' => 'required|string',
-            'description' => 'nullable|string',
-            'category_id' => 'required|integer',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
+        $product->name = $request->input('name', $product->name);
+        $product->price = $request->input('price', $product->price);
+        $product->description = $request->input('description', $product->description);
+        $product->category_id = $request->input('category_id', $product->category_id);
 
-        // Only update images if new ones are uploaded
         if ($request->hasFile('images')) {
             $images = [];
             foreach ($request->file('images') as $file) {
@@ -148,10 +179,15 @@ class ProductController extends Controller
             $product->images = json_encode($images);
         }
 
-        $product->update($request->only('name', 'price', 'description', 'category_id'));
+        $product->save();
 
-        return response()->json($product);
+        return response()->json(['success' => true, 'product' => $product]);
     }
+
+
+
+
+
 
     /**
      * Remove the specified resource from storage.

@@ -8,7 +8,7 @@ import { ReactJsxRuntime } from "next/dist/server/route-modules/app-page/vendore
 
 export default function Home() {
   return (
-    <div>
+    <div >
       <Hero />
       <Search />
       <FeaturedCarousel />

@@ -1,150 +1,64 @@
 "use client";
-import { useParams } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
+
 import { useEffect, useState } from "react";
-import InquiryForm from "@/components/InquiryForm";
-import api from "@/app/utils/api";
+import axios, { AxiosError } from "axios";
+import { useParams } from "next/navigation";
 
 interface Product {
   id: number;
   name: string;
-  price: string;
   description: string;
-  specifications: Record<string, string>;
+  price: number;
   images: string[];
-  pdf?: string;
 }
 
 export default function ProductPage() {
-  const params = useParams<{ id: string }>();
-  const id = Number(params.id);
-
+  const params = useParams();
+  const { id } = params; // comes from /products/[id]
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Function to convert image paths to absolute URLs
-  const getImageUrl = (imagePath: string): string => {
-    if (!imagePath) return "/placeholder.png";
-    
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    // If it's a relative path from Laravel, make it absolute
-    if (imagePath.startsWith('/products/') || imagePath.startsWith('products/')) {
-      // Remove leading slash if present to avoid double slashes
-      const cleanPath = imagePath.replace(/^\//, '');
-      return `http://127.0.0.1:8000/storage/${cleanPath}`;
-    }
-    
-    // For any other case (like placeholder), return as is
-    return imagePath;
-  };
-
-  // Function to safely parse images
-  const safeJSONParse = (str: string | string[]): string[] => {
-    if (Array.isArray(str)) return str;
-    try {
-      const parsed = JSON.parse(str);
-      return Array.isArray(parsed) ? parsed : [str];
-    } catch {
-      return [str];
-    }
-  };
-
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
 
-    api
-      .get(`/products/${id}`)
-      .then((res) => {
-        const data = res.data;
-        
-        // Parse images safely
-        const parsedImages = safeJSONParse(data.images);
-        
-        // Convert image paths to absolute URLs
-        const images = parsedImages.map(img => getImageUrl(img));
+    const fetchProduct = async () => {
+      try {
+        const response = await axios.get<Product>(`http://127.0.0.1:8000/api/products/${id}`);
+        setProduct(response.data);
+      } catch (err) {
+        const axiosError = err as AxiosError;
+        if (axiosError.response?.status === 404) {
+          setError("Product not found");
+        } else {
+          setError("Failed to fetch product");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        setProduct({ 
-          ...data, 
-          images,
-          specifications: typeof data.specifications === 'string' 
-            ? JSON.parse(data.specifications) 
-            : data.specifications || {}
-        });
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to fetch product");
-        setLoading(false);
-      });
+    fetchProduct();
   }, [id]);
 
-  if (loading) return <p className="px-4 py-12 max-w-5xl mx-auto">Loading product...</p>;
-  if (error) return <p className="px-4 py-12 max-w-5xl mx-auto text-red-600">{error}</p>;
-  if (!product) return <p className="px-4 py-12 max-w-5xl mx-auto">No product found.</p>;
+  if (loading) return <p className="text-center mt-10">Loading product...</p>;
+  if (error) return <p className="text-center mt-10 text-red-500">{error}</p>;
+  if (!product) return <p className="text-center mt-10">No product found.</p>;
 
   return (
-    <div className="px-4 py-12 max-w-5xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">{product.name}</h1>
-      <p className="text-blue-600 font-bold mb-6">{product.price}</p>
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
 
-      {/* Image gallery */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {product.images.map((img, idx) => (
-          <div key={idx} className="relative w-full h-96"> {/* Fixed height */}
-            <Image
-              src={img}
-              alt={`${product.name} ${idx + 1}`}
-              fill
-              className="object-cover rounded-lg"
-              onError={(e) => {
-                // Fallback if image fails to load
-                (e.target as HTMLImageElement).src = '/placeholder.png';
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Description */}
-      <p className="mb-6 text-white">{product.description}</p>
-
-      {/* Specifications Table */}
-      {product.specifications && Object.keys(product.specifications).length > 0 && (
-        <>
-          <h2 className="text-xl font-bold mb-4">Specifications</h2>
-          <table className="table-auto border border-gray-300 mb-6 w-full">
-            <tbody>
-              {Object.entries(product.specifications).map(([key, value]) => (
-                <tr key={key} className="border-b border-gray-200 even:bg-gray-50">
-                  <td className="px-4 py-2 font-semibold">{key}</td>
-                  <td className="px-4 py-2">{value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+      {product.images?.length > 0 && (
+        <img
+          src={product.images[0]}
+          alt={product.name}
+          className="rounded-xl shadow-md mb-6 w-full max-h-[400px] object-cover"
+        />
       )}
 
-      {/* PDF Download */}
-      {product.pdf && (
-        <Link
-          href={product.pdf.startsWith('http') ? product.pdf : `http://127.0.0.1:8000${product.pdf}`}
-          target="_blank"
-          className="inline-block text-white bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 mb-6"
-        >
-          Download PDF
-        </Link>
-      )}
-
-      <InquiryForm productId={product.id} title={product.name} />
+      <p className="text-gray-700 mb-4">{product.description}</p>
+      <p className="text-xl font-semibold">${product.price}</p>
     </div>
   );
 }
