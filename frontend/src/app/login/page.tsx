@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -35,7 +36,8 @@ export default function Login() {
   };
 
   return (
-    <form onSubmit={handleLogin} className="max-w-md mx-auto p-39 text-black">
+    <div className="mt-50 max-w-md  mx-auto p-8 shadow-lg bg-[#00808020] rounded" >
+    <form onSubmit={handleLogin} className="max-w-md mx-auto   text-black">
       <input
         type="email"
         placeholder="Email"
@@ -52,9 +54,15 @@ export default function Login() {
         className="border p-2 mb-2 w-full"
         required
       />
-      <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+      <button type="submit" className="bg-[#008080] text-white px-4 py-2 rounded w-full">
         Login
       </button>
-    </form>
+      <p className="mt-4 text-center text-sm">
+        Don't have an account?{" "}
+        <Link href="/register" className="text-[#008080] hover:underline">
+          Register
+        </Link>
+      </p>
+    </form></div> 
   );
 }

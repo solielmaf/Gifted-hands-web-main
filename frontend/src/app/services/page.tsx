@@ -134,7 +134,7 @@ export default function ServicesPage() {
   const confirmDelete = (id: number) => {
     toast.custom((t) => (
       <div className="flex flex-col bg-white shadow-lg p-4 rounded gap-3 w-80">
-        <p>Are you sure you want to delete this service?</p>
+        <p>Delete this service?</p>
         <div className="flex justify-end gap-2">
           <button
             className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"

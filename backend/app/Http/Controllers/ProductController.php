@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 class ProductController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of products.
      */
     public function index(Request $request)
     {
@@ -24,91 +24,71 @@ class ProductController extends Controller
 
         $products = $query->get();
 
-        // Transform the products to include proper image URLs
-        return $products->map(function ($product) {
-            $images = [];
-
-            // Handle the images field whether it's array, string, or JSON string
-            if (is_array($product->images)) {
-                $images = $product->images;
-            } elseif (is_string($product->images)) {
-                // Try to decode JSON, if it fails, treat as single image string
-                $decoded = json_decode($product->images, true);
-                $images = is_array($decoded) ? $decoded : [$product->images];
-            }
-
-            // Clean and format image URLs
-            $cleanedImages = array_map(function ($image) {
-                // Remove any unwanted characters
-                $cleanImage = trim($image, '"[]\\/');
-                // Ensure it's a proper path
-                if (strpos($cleanImage, 'products/') === 0) {
-                    return asset('storage/' . $cleanImage);
-                }
-                return $cleanImage;
-            }, $images);
-
-            // Remove empty values
-            $cleanedImages = array_filter($cleanedImages);
-
+        return response()->json($products->map(function ($product) {
             return [
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => $product->price,
                 'description' => $product->description,
                 'category_id' => $product->category_id,
-                'images' => !empty($cleanedImages) ? $cleanedImages : [asset('storage/placeholder.png')],
-                'category' => $product->category
+                'images' => $this->getImageUrls($product->images),
+                'category' => $product->category,
             ];
-        });
+        }));
     }
+
+    /**
+     * Get new arrivals.
+     */
     public function newArrivals()
     {
-        $products = Product::orderBy('created_at', 'desc')
+        $products = Product::with('category')
+            ->orderBy('created_at', 'desc')
             ->take(4)
             ->get();
 
-        return $products->map(function ($product) {
-            $images = [];
-
-            if (is_string($product->images)) {
-                $decoded = json_decode($product->images, true);
-                $imageArray = is_array($decoded) ? $decoded : [$product->images];
-
-                foreach ($imageArray as $image) {
-                    if ($image) {
-                        // Remove any leading slashes to avoid double slashes
-                        $cleanImage = ltrim($image, '/');
-                        // Return full URL instead of relative path
-                        $images[] = asset('storage/' . $cleanImage);
-                    }
-                }
-            }
-
-            // If no images, use placeholder
-            if (empty($images)) {
-                $images = ["/placeholder.png"];
-            }
-
+        // Return a proper JSON array
+        return response()->json($products->map(function ($product) {
             return [
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => $product->price,
-                'images' => $images,
+                'images' => $this->getImageUrls($product->images),
             ];
-        });
+        })->values()->all()); // 👈 ensures array instead of collection
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Helper to get image URLs.
      */
-    public function create()
+    private function getImageUrls($imagesField)
     {
-        //
+        $images = [];
+
+        if (is_array($imagesField)) {
+            $images = $imagesField;
+        } elseif (is_string($imagesField)) {
+            $decoded = json_decode($imagesField, true);
+            $images = is_array($decoded) ? $decoded : [$imagesField];
+        }
+
+        $cleanedImages = array_map(function ($img) {
+            $cleanImage = trim($img, '"[]\\/');
+
+            if (strpos($cleanImage, 'products/') === 0) {
+                return asset('storage/' . $cleanImage);
+            }
+
+            return $cleanImage;
+        }, $images);
+
+        $cleanedImages = array_filter($cleanedImages);
+
+        return !empty($cleanedImages) ? $cleanedImages : [asset('storage/placeholder.png')];
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a new product.
      */
     public function store(Request $request)
     {
@@ -123,80 +103,76 @@ class ProductController extends Controller
         $images = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
-                $path = $file->store('products', 'public');
-                $images[] = $path;
+                $images[] = $file->store('products', 'public');
             }
         }
 
-        // Handle case where no images are uploaded
         $product = Product::create([
             'name' => $request->name,
             'price' => $request->price,
             'description' => $request->description,
             'category_id' => $request->category_id,
-            'images' => !empty($images) ? json_encode($images) : json_encode([]), // Ensure it's always an array
+            'images' => json_encode($images),
         ]);
 
         return response()->json($product);
     }
+
     /**
-     * Display the specified resource.
+     * Show a product by ID.
      */
-    public function show(Product $product)
+    public function show($id)
     {
-        return $product->load('category');
-        $product = Product::find($id);
+        $product = Product::with('category')->find($id);
+
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
-        return response()->json($product);
+
+        return response()->json([
+            'id' => $product->id,
+            'name' => $product->name,
+            'price' => $product->price,
+            'description' => $product->description,
+            'category_id' => $product->category_id,
+            'images' => $this->getImageUrls($product->images),
+            'category' => $product->category,
+        ]);
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Product $product)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
+     * Update a product.
      */
     public function update(Request $request, Product $product)
     {
-        $product->name = $request->input('name', $product->name);
-        $product->price = $request->input('price', $product->price);
-        $product->description = $request->input('description', $product->description);
-        $product->category_id = $request->input('category_id', $product->category_id);
+        $product->update([
+            'name' => $request->input('name', $product->name),
+            'price' => $request->input('price', $product->price),
+            'description' => $request->input('description', $product->description),
+            'category_id' => $request->input('category_id', $product->category_id),
+        ]);
 
         if ($request->hasFile('images')) {
             $images = [];
             foreach ($request->file('images') as $file) {
-                $path = $file->store('products', 'public');
-                $images[] = $path;
+                $images[] = $file->store('products', 'public');
             }
             $product->images = json_encode($images);
+            $product->save();
         }
 
-        $product->save();
-
-        return response()->json(['success' => true, 'product' => $product]);
+        return response()->json([
+            'success' => true,
+            'product' => $product,
+        ]);
     }
 
-
-
-
-
-
     /**
-     * Remove the specified resource from storage.
+     * Delete a product.
      */
     public function destroy(Product $product)
     {
-        // Delete the product
         $product->delete();
-
         return response()->json(['message' => 'Product deleted successfully']);
     }
 }

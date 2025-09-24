@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import {toast, Toaster} from "react-hot-toast";
 
 export default function ContactForm() {
   const [name, setName] = useState("");
@@ -21,22 +22,24 @@ export default function ContactForm() {
       });
 
       if (res.ok) {
-        alert("Message sent successfully!");
+        toast.success("Message sent successfully!");
         setName("");
         setEmail("");
         setMessage("");
       } else {
-        alert("Failed to send message.");
+        toast.error("Failed to send message.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error sending message.");
+      toast.error("Error sending message.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
+    <Toaster position="top-center" reverseOrder={false} />
     <form
       onSubmit={handleSubmit}
       className="mt-8 p-4 border rounded-lg shadow-md bg-gray-50"
@@ -77,6 +80,6 @@ export default function ContactForm() {
       >
         {loading ? "Sending..." : "Send Message"}
       </button>
-    </form>
+    </form></>
   );
 }

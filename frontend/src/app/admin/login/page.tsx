@@ -95,7 +95,7 @@ export default function AdminLogin() {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-[#008080] text-white p-2 rounded hover:[#008080] cursor-pointer disabled:opacity-50"
           disabled={loading}
         >
           {loading ? "Logging in..." : "Login"}

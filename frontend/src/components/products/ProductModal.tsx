@@ -83,7 +83,7 @@ export default function ProductModal({ isOpen, onClose, onSubmit, editingProduct
           name="category_id"
           value={form.category_id}
           onChange={handleChange}
-          className="w-full mb-2 p-2 border border-[#008080] rounded"
+          className="w-full mb-2 p-2 border border-[#008080] rounded focus:outline-none focus:ring-0 hover:bg-white"
         >
           <option value={0}>Select Category</option>
           {categories.map((cat) => (

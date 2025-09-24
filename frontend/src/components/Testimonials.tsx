@@ -83,7 +83,7 @@ export default function TestimonialsPage() {
 
   return (
     <div className="px-18 py-10 w-full text-black">
-      <Toaster position="top-right" />
+      <Toaster position="top-center" />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl mb-15 font-bold">What Our Clients Say</h1>
         {user?.role === "admin" && (

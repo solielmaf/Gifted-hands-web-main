@@ -30,9 +30,9 @@ export default function AboutPage() {
   ];
 
   return (
-    <section className="px-4 py-12 max-w-6xl mx-auto">
+    <section className="px-4 py-12 max-w-6xl mt-10 mx-auto">
 
-      <h1 className="text-3xl font-bold  mb-8">About Us</h1>
+      <h1 className="text-3xl font-bold  text-black mb-8">About Us</h1>
       
     <div className="px-4 py-12 max-w-6xl mx-auto grid gap-8 md:grid-cols-3">
       

@@ -27,6 +27,22 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
+  // Debug function to check API connectivity
+  const checkApiConnection = async () => {
+    try {
+      console.log("Testing API connection to:", API_BASE);
+      const testRes = await fetch(`${API_BASE}/api/test`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      console.log("API connection test result:", testRes.status, testRes.statusText);
+    } catch (error) {
+      console.error("API connection failed:", error);
+    }
+  };
+
   // ---------- helpers ----------
   const confirmToast = (message: string, onConfirm: () => void) => {
     toast.custom((t) => (
@@ -50,49 +66,28 @@ export default function ProductsPage() {
     ));
   };
 
-  /**
-   * Normalize possible shapes for the images field into a string[].
-   * Accepts:
-   * - undefined/null => []
-   * - string that's JSON => parsed array or single string
-   * - plain string (single path) => [string]
-   * - array of strings => as-is
-   * - object(s) like { path: '...' } => extract path
-   */
   const safeJSONParse = (input?: unknown): string[] => {
     if (!input) return [];
-
-    if (Array.isArray(input)) {
-      return input.filter(Boolean).map(String);
-    }
-
+    if (Array.isArray(input)) return input.filter(Boolean).map(String);
     if (typeof input === "string") {
-      // Try parse as JSON array or single value string
       try {
         const parsed = JSON.parse(input);
         if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
         if (typeof parsed === "string") return [parsed];
         if (typeof parsed === "object" && parsed !== null) {
-          // maybe object or array of objects
-          // try extract path
-          // @ts-expect-error runtime check below
           if ("path" in parsed) return [String((parsed as Record<string, unknown>).path)];
           return [String(parsed)];
         }
         return [input];
       } catch {
-        // not JSON -> treat as single path string
         return [input];
       }
     }
-
     if (typeof input === "object") {
-      // input might be object or array-like
       const obj = input as Record<string, unknown>;
       if ("path" in obj) return [String(obj.path)];
       return [String(input)];
     }
-
     return [];
   };
 
@@ -102,7 +97,6 @@ export default function ProductsPage() {
     return `${API_BASE}/storage/${imagePath.replace(/^\/+/, "")}`;
   };
 
-  // Accept either string or string[] and return first image URL (safe)
   const getFirstImageUrl = (imgData?: string | string[] | undefined) => {
     if (!imgData) return getImageUrl(undefined);
     if (Array.isArray(imgData)) return getImageUrl(imgData[0]);
@@ -114,30 +108,48 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("adminToken");
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API_BASE}/api/products`, { headers, credentials: "include" });
+      if (!token) {
+        toast.error("Please login again");
+        router.push("/login");
+        return;
+      }
+
+      console.log("Fetching products from:", `${API_BASE}/api/products`);
+      
+      const res = await fetch(`${API_BASE}/api/products`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json"
+        }
+      });
+
+      console.log("Products API response:", res.status, res.statusText);
 
       if (res.status === 401) {
         toast.error("Please login again");
         router.push("/login");
         return;
       }
-      if (!res.ok) throw new Error(await res.text());
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Products API error:", errorText);
+        throw new Error(errorText || `HTTP error! status: ${res.status}`);
+      }
+      
       const data: Product[] = await res.json();
+      console.log("Products data received:", data.length, "items");
 
       const normalized = data.map((p) => ({
         ...p,
-        images:
-          typeof p.images === "string"
-            ? safeJSONParse(p.images)
-            : Array.isArray(p.images)
-            ? p.images
-            : safeJSONParse(p.images),
+        images: safeJSONParse(p.images),
       }));
+      
       setProducts(normalized);
     } catch (err) {
-      console.error(err);
-      toast.error("❌ Failed to fetch products");
+      console.error("Failed to fetch products:", err);
+      toast.error("❌ Failed to fetch products. Check console for details.");
+      await checkApiConnection();
     } finally {
       setLoading(false);
     }
@@ -146,23 +158,43 @@ export default function ProductsPage() {
   const fetchCategories = useCallback(async (): Promise<void> => {
     try {
       const token = localStorage.getItem("adminToken");
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API_BASE}/api/categories`, { headers, credentials: "include" });
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      console.log("Fetching categories from:", `${API_BASE}/api/categories`);
+      
+      const res = await fetch(`${API_BASE}/api/categories`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json"
+        }
+      });
+      
+      console.log("Categories API response:", res.status, res.statusText);
+
       if (res.status === 401) {
         router.push("/login");
         return;
       }
-      if (!res.ok) throw new Error(await res.text());
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Categories API error:", errorText);
+        throw new Error(errorText || `HTTP error! status: ${res.status}`);
+      }
+      
       const data: Category[] = await res.json();
+      console.log("Categories data received:", data.length, "items");
       setCategories(data);
     } catch (err) {
-      console.error(err);
-      toast.error("❌ Failed to fetch categories");
+      console.error("Failed to fetch categories:", err);
+      toast.error("❌ Failed to fetch categories. Check console for details.");
     }
   }, [router]);
 
   useEffect(() => {
-    // restore user if present
     const storedUser = localStorage.getItem("adminUser");
     if (storedUser) {
       try {
@@ -185,6 +217,7 @@ export default function ProductsPage() {
     setEditingProduct(product ?? null);
     setProductModalOpen(true);
   };
+  
   const openCategoryModal = (cat?: Category) => {
     setEditingCategory(cat ?? null);
     setCategoryModalOpen(true);
@@ -196,59 +229,85 @@ export default function ProductsPage() {
       toast.error("⚠️ Please fill all required fields");
       return;
     }
+    
     if (!user || user.role !== "admin") {
       toast.error("⚠️ Admin access required");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("name", String(form.name));
-    formData.append("price", String(form.price));
-    formData.append("description", String(form.description ?? ""));
-    formData.append("category_id", String(form.category_id));
-
-    // append new files
-    files.forEach((f) => formData.append("images[]", f));
-
-    // if editing and no new files were uploaded, send existing_images so backend can keep them
-    if (editingProduct && files.length === 0) {
-      const existingImages = Array.isArray(editingProduct.images) ? editingProduct.images : safeJSONParse(editingProduct.images);
-      existingImages.forEach((img) => formData.append("existing_images[]", String(img)));
-      // method override for Laravel when sending files
-      formData.append("_method", "PUT");
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      toast.error("Authentication token missing");
+      router.push("/login");
+      return;
     }
 
     try {
-      const url = editingProduct ? `${API_BASE}/api/products/${editingProduct.id}` : `${API_BASE}/api/products`;
-      const token = localStorage.getItem("adminToken");
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      const formData = new FormData();
+      formData.append("name", String(form.name));
+      formData.append("price", String(form.price));
+      formData.append("description", String(form.description ?? ""));
+      formData.append("category_id", String(form.category_id));
 
-      // Use POST and rely on _method override when updating with files
+      // Append new files
+      files.forEach((f) => formData.append("images[]", f));
+
+      // If editing and no new files were uploaded, send existing_images
+      if (editingProduct && files.length === 0) {
+        const existingImages = safeJSONParse(editingProduct.images);
+        existingImages.forEach((img) => formData.append("existing_images[]", String(img)));
+      }
+
+      // Determine URL and method
+      const isEditing = Boolean(editingProduct);
+      let url = `${API_BASE}/api/products`;
+      let method = "POST";
+      
+      if (isEditing) {
+        url = `${API_BASE}/api/products/${editingProduct!.id}`;
+        method = "PUT";
+        // For Laravel, we need to use POST with _method override when sending FormData
+        formData.append("_method", "PUT");
+      }
+
+      console.log("Sending product data to:", url, "Method:", method);
+      
       const res = await fetch(url, {
-        method: "POST",
+        method: isEditing ? "POST" : "POST", // Use POST for both cases with _method override for edits
         body: formData,
-        headers,
-        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
+      console.log("Product submit response:", res.status, res.statusText);
+
       if (res.status === 401) {
+        toast.error("Session expired. Please login again.");
         router.push("/login");
         return;
       }
+
       if (!res.ok) {
-        const txt = await res.text();
-        console.error("Save product error:", txt);
-        throw new Error(txt);
+        const errorText = await res.text();
+        console.error("Save product error:", res.status, errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          toast.error(`❌ Error: ${errorJson.message || errorText}`);
+        } catch {
+          toast.error(`❌ Error: ${errorText || "Failed to save product"}`);
+        }
+        return;
       }
 
       const json = await res.json();
-      // backend might return { product: {...} } or the product directly
       const returned = (json.product ?? json) as Product;
 
       // Normalize images
-      returned.images = Array.isArray(returned.images) ? returned.images : safeJSONParse(returned.images);
+      returned.images = safeJSONParse(returned.images);
 
-      if (editingProduct) {
+      if (isEditing) {
         setProducts((prev) => prev.map((p) => (p.id === returned.id ? returned : p)));
       } else {
         setProducts((prev) => [returned, ...prev]);
@@ -256,10 +315,10 @@ export default function ProductsPage() {
 
       setProductModalOpen(false);
       setEditingProduct(null);
-      toast.success(`✅ Product ${editingProduct ? "updated" : "created"} successfully`);
+      toast.success(`✅ Product ${isEditing ? "updated" : "created"} successfully`);
     } catch (err) {
-      console.error(err);
-      toast.error("❌ Error saving product");
+      console.error("Network error details:", err);
+      toast.error("❌ Network error. Please check your connection and console for details.");
     }
   };
 
@@ -267,12 +326,32 @@ export default function ProductsPage() {
   const handleDeleteProduct = async (id: number): Promise<void> => {
     confirmToast("Delete this product?", async () => {
       try {
+        const token = localStorage.getItem("adminToken");
+        if (!token) {
+          toast.error("Authentication token missing");
+          router.push("/login");
+          return;
+        }
+
         const res = await fetch(`${API_BASE}/api/products/${id}`, {
           method: "DELETE",
-          credentials: "include",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         });
-        if (res.status === 401) router.push("/login");
-        if (!res.ok) throw new Error(await res.text());
+        
+        console.log("Delete product response:", res.status, res.statusText);
+        
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || `HTTP error! status: ${res.status}`);
+        }
+        
         setProducts((prev) => prev.filter((p) => p.id !== id));
         setFiltered((prev) => prev.filter((p) => p.id !== id));
         toast.success("🗑️ Product deleted successfully");
@@ -289,16 +368,39 @@ export default function ProductsPage() {
       toast.error("⚠️ Enter category name");
       return;
     }
+    
     try {
-      const url = editingCategory ? `${API_BASE}/api/categories/${editingCategory.id}` : `${API_BASE}/api/categories`;
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        toast.error("Authentication token missing");
+        router.push("/login");
+        return;
+      }
+
+      const url = editingCategory 
+        ? `${API_BASE}/api/categories/${editingCategory.id}` 
+        : `${API_BASE}/api/categories`;
+      
       const method = editingCategory ? "PUT" : "POST";
+      
+      console.log("Sending category data to:", url, "Method:", method);
+      
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify(form),
-        credentials: "include",
       });
-      if (!res.ok) throw new Error(await res.text());
+      
+      console.log("Category submit response:", res.status, res.statusText);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `HTTP error! status: ${res.status}`);
+      }
+      
       setCategoryModalOpen(false);
       setEditingCategory(null);
       fetchCategories();
@@ -312,11 +414,27 @@ export default function ProductsPage() {
   const handleDeleteCategory = async (id: number): Promise<void> => {
     confirmToast("Delete this category?", async () => {
       try {
+        const token = localStorage.getItem("adminToken");
+        if (!token) {
+          toast.error("Authentication token missing");
+          router.push("/login");
+          return;
+        }
+
         const res = await fetch(`${API_BASE}/api/categories/${id}`, {
           method: "DELETE",
-          credentials: "include",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         });
-        if (!res.ok) throw new Error(await res.text());
+        
+        console.log("Delete category response:", res.status, res.statusText);
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || `HTTP error! status: ${res.status}`);
+        }
+        
         setCategories((prev) => prev.filter((c) => c.id !== id));
         if (selectedCategory === id) setSelectedCategory("");
         toast.success("🗑️ Category deleted successfully");

@@ -71,3 +71,24 @@ body {
   transform: translate(-50%, -50%) !important;
   position: fixed !important;
 }
+/* In globals.css */
+.scrollbar-custom::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: #e5e7eb; /* Tailwind gray-200 */
+  border-radius: 10px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background-color: #008080; /* Teal color */
+  border-radius: 10px;
+  border: 2px solid #e5e7eb; /* adds a border around thumb */
+}
+
+/* Firefox */
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: #008080 #e6e6e6d6;
+}

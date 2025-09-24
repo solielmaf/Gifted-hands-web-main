@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -30,24 +31,59 @@ export default function Register() {
         localStorage.setItem("currentUser", JSON.stringify(data.user));
         localStorage.setItem("token", data.token);
 
-        alert("Registration successful!");
-        window.location.href = "/"; // redirect
+        toast.success("Registration successful!", { position: "top-center" });
+        setTimeout(() => {
+          window.location.href = "/"; // redirect
+        }, 1500);
       } else {
-        alert(data.message || JSON.stringify(data.errors));
+        toast.error(data.message || JSON.stringify(data.errors), { position: "top-center" });
       }
     } catch (err) {
       console.error("Registration error:", err);
-      alert("Something went wrong");
+      toast.error("Something went wrong", { position: "top-center" });
     }
   };
 
   return (
-    <form onSubmit={handleRegister} className="max-w-md mx-auto p-4">
-      <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} className="border p-2 mb-2 w-full" required />
-      <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="border p-2 mb-2 w-full" required />
-      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="border p-2 mb-2 w-full" required />
-      <input type="password" placeholder="Confirm Password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} className="border p-2 mb-2 w-full" required />
-      <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">Register</button>
-    </form>
+    <div className="mt-50 max-w-md  mx-auto p-8 shadow-lg bg-[#00808020] rounded" >
+      <Toaster />
+      <form onSubmit={handleRegister} className="max-w-md mx-auto  text-black p-4">
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="border p-2 mb-2 w-full"
+          required
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border p-2 mb-2 w-full"
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 mb-2 w-full"
+          required
+        />
+        <input
+          type="password"
+          placeholder="Confirm Password"
+          value={passwordConfirm}
+          onChange={(e) => setPasswordConfirm(e.target.value)}
+          className="border p-2 mb-2 w-full"
+          required
+        />
+        <button type="submit" className="bg-[#008080] text-white px-4 py-2 rounded w-full">
+          Register
+        </button>
+      </form>
+    </div>
   );
 }
